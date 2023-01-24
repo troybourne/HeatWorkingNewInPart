@@ -1,0 +1,1038 @@
+#include <Arduino.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+/*
+  ESP-NOW Multi Unit Demo
+  esp-now-multi.ino
+  Broadcasts control messages to all devices in network
+  Load script on multiple devices
+
+  DroneBot Workshop 2022
+  https://dronebotworkshop.com
+*/
+
+// Include Libraries
+#include <WiFi.h>
+#include <esp_now.h>
+//#include <LibPrintf.h>
+
+// Define LED and pushbutton state booleans
+// bool buttonDown = false;
+bool ledOn = false;
+
+// Define LED and pushbutton pins
+#define STATUS_LED 2
+#define curActiveDev 19
+//#define STATUS_BUTTON 5
+
+// Define all functions
+void newGoingUpOrDown();
+
+long int counterA;
+long int counterB;
+#define devID 9
+bool startTimeSet = 0;
+long int startTime;
+// struct variables into array
+String structStr = "";
+String newConcatStr = "";
+int deviceID = devID; // devID
+int setPoint1 = 51;
+int setPoint2 = 52;
+int setPoint3 = 53;
+int setPoint4 = 54;
+int setPoint5 = 55;
+int setPoint6 = 56;
+int setPoint7 = 57;
+int setPoint8 = 58;
+int setPoint9 = 59;
+int setPoint10 = 60;
+int setPoint11 = 61;
+int setPoint12 = 62;
+int setPoint13 = 63;
+int setPoint14 = 64;
+int setPoint15 = 65;
+int setPoint16 = 66;
+int setPoint17 = 67;
+int setPoint18 = 68;
+int setPoint19 = 69;
+int setPoint20 = 70;
+int awayDrop21 = 71; // Ambient Temp
+int awayDrop22 = 72; // HighLimit
+int awayDrop23 = 73; // LowLimit   maybe sends text or email notification for freeze protect r heating sys failure notice
+int awayDrop24 = 74; // shutDownStatus bool for holiday
+int awayDrop25 = 75; // AwayDropAggressive
+int awayDrop26 = 76; // AwayDropMod
+int awayDrop27 = 77; // AwayDropMild
+int awayDrop28 = 78; // AwayDropAmbientDifferential
+int awayDrop29 = 79; //
+int awayDrop30 = 80; //
+int awayDrop31 = 81; //
+int awayDrop32 = 82; //
+int awayDrop33 = 83;
+int awayDrop34 = 84;
+int awayDrop35 = 85;
+int awayDrop36 = 86;
+int awayDrop37 = 87;
+int awayDrop38 = 88;
+int awayDrop39 = 89;
+int awayDrop40 = 90;
+int ambientTemp41 = 41;
+int highTempLimit42 = 42;
+int lowTempLimit43 = 43;
+int shutDownBool44 = 0;
+int ambientThresholdOverride45 = 45;
+int goToRunState46 = 46;
+int goingUpStates47 = 47;
+int sendingID48 = 8;
+int whoIsCurrentlyIncrementing49 = 0;
+int missingDev50 = 0;
+int missingDev51 = 1;
+int missingDev52 = 2;
+int missingDev53 = 3;
+int missingDev54 = 4;
+int missingDev55 = 5;
+int missingDev56 = 6;
+int missingDev57 = 7;
+int missingDev58 = 8;
+int missingDev59 = 9;
+int missingDev60 = 10;
+int missingDev61 = 11;
+int missingDev62 = 12;
+int missingDev63 = 13;
+int missingDev64 = 14;
+int missingDev65 = 15;
+int missingDev66 = 16;
+int missingDev67 = 17;
+int newItsYourTurn = 18;
+int messageType69 = 19;
+int curTime70 = 1200; // military time no colon
+int dayOfWeek71 = 0;  // mon1 fri 5
+int startTime72 = 630;
+int end1stShift73 = 1530;
+int end2ndShift74 = 2330;
+int end3rdShift75 = 700;
+int notUsedYet = 0;
+String message = "test"; // 0 = SetPoints, 1 = AwayDrop (0=0ff, 1=10% diff,5=50%diff, anything above 10 is actual temp)
+String textMessage = "text";
+
+String stringStr = "";
+const int STRUCT_ARRAY_SIZE = 76;
+int structArray[STRUCT_ARRAY_SIZE] = {deviceID, setPoint1, setPoint2, setPoint3, setPoint4, setPoint5, setPoint6, setPoint7, setPoint8, setPoint9, setPoint10, setPoint11, setPoint12, setPoint13, setPoint14, setPoint15, setPoint16, setPoint17, setPoint18, setPoint19, setPoint20, awayDrop21, awayDrop22, awayDrop23, awayDrop24, awayDrop25, awayDrop27, awayDrop28, awayDrop29, awayDrop30, awayDrop31, awayDrop32, awayDrop33, awayDrop34, awayDrop35, awayDrop36, awayDrop37, awayDrop39, awayDrop40, ambientTemp41, highTempLimit42, lowTempLimit43, shutDownBool44, ambientThresholdOverride45, goToRunState46, goingUpStates47, sendingID48, whoIsCurrentlyIncrementing49, missingDev50, missingDev51, missingDev52, missingDev53, missingDev54, missingDev55, missingDev56, missingDev57, missingDev58, missingDev59, missingDev60, missingDev61, missingDev62, missingDev63, missingDev64, missingDev65, missingDev66, missingDev67, newItsYourTurn, messageType69, curTime70, dayOfWeek71, startTime72, end1stShift73, end2ndShift74, end3rdShift75, notUsedYet};
+
+const int CSV_ARRAY_SIZE = 21;
+String csvArray[CSV_ARRAY_SIZE] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"};
+
+void assembleString(){
+    for (int i = 0; i < STRUCT_ARRAY_SIZE; i++)
+  {
+    newConcatStr.concat(csvArray[i]);
+    if (i < CSV_ARRAY_SIZE - 1)
+    {
+      newConcatStr.concat(",");
+    }
+  }
+  Serial.println(newConcatStr);
+}
+
+
+String doTheMathAndBackToString(String forDoingMath, int i)
+{
+  if (i == 0)
+  {
+    newGoingUpOrDown();
+    printf("***********************the new count should be... %s\n", csvArray[0]);
+  }
+  printf("forDoingMath is working with %s on iteration %i\n", forDoingMath, i);
+  return forDoingMath;
+}
+
+void updateTemp(int i)
+{
+  int mockTemp = random(62, 68);
+  printf("update temp reached and random temp is %i\n",mockTemp);
+  csvArray[i] = String(mockTemp);
+  printf("update int to string and rand string is %s\n",csvArray[i]);
+}
+
+void printCsvArrayValues()
+{
+    newConcatStr = "";
+  printf("Reached printCsvArrayValues\n");
+  for (int i = 0; i < CSV_ARRAY_SIZE; i++)
+  {
+    if (i == 0)
+    {
+      newGoingUpOrDown();
+    }
+    if (csvArray[i].toInt() == devID)
+    {
+      String sendToDoMath = csvArray[i];
+      updateTemp(devID);
+    }
+    newConcatStr.concat(csvArray[i]);
+    if (i < CSV_ARRAY_SIZE - 1)
+    {
+      newConcatStr.concat(",");
+    }
+  }
+  Serial.println(newConcatStr);
+
+}
+
+// randomGen variables
+String str = ""; // for random gen which will become getESPnowCSV();
+const int RAND_ARRAY_SIZE = 20;
+int randomArray[RAND_ARRAY_SIZE] = {59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 1};
+const int numOfDevices = 20;
+bool goingUp = 1;
+int itsYourTurn = 10;
+
+// variables for csvToStructStr
+String buffString;
+
+void formatMacAddress(const uint8_t *macAddr, char *buffer, int maxLength)
+// Formats MAC Address
+{
+  snprintf(buffer, maxLength, "%02x:%02x:%02x:%02x:%02x:%02x", macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+}
+
+typedef struct struct_message
+{
+  String newConcatStr;
+  /*
+  int deviceID;  // 0 going out
+  int setPoint1; // devID
+  int setPoint2;
+  int setPoint3;
+  int setPoint4;
+  int setPoint5;
+  int setPoint6;
+  int setPoint7;
+  int setPoint8;
+  int setPoint9;
+  int setPoint10;
+  int setPoint11;
+  int setPoint12;
+  int setPoint13;
+  int setPoint14;
+  int setPoint15;
+  int setPoint16;
+  int setPoint17;
+  int setPoint18;
+  int setPoint19;
+  int setPoint20;
+  int awayDrop21; // Ambient Temp
+  int awayDrop22; // HighLimit
+  int awayDrop23; // LowLimit   maybe sends text or email notification for freeze protect or heating sys failure notice
+  int awayDrop24; // shutDownStatus bool for holiday
+  int awayDrop25; // AwayDropAggressive
+  int awayDrop26; // AwayDropMod
+  int awayDrop27; // AwayDropMild
+  int awayDrop28; // AwayDropAmbientDifferential
+  int awayDrop29; //
+  int awayDrop30; //
+  int awayDrop31; //
+  int awayDrop32; //
+  int awayDrop33;
+  int awayDrop34;
+  int awayDrop35;
+  int awayDrop36;
+  int awayDrop37;
+  int awayDrop38;
+  int awayDrop39;
+  int awayDrop40;
+  int ambientTemp41;
+  int highTempLimit42;
+  int lowTempLimit43;
+  int shutDownBool44;
+  int ambientThresholdOverride45;
+  int goToRunState46;
+  int goingUpStates47;
+  int sendingID48;
+  int whoIsCurrentlyIncrementing49;
+  int missingDev50;
+  int missingDev51;
+  int missingDev52;
+  int missingDev53;
+  int missingDev54;
+  int missingDev55;
+  int missingDev56;
+  int missingDev57;
+  int missingDev58;
+  int missingDev59;
+  int missingDev60;
+  int missingDev61;
+  int missingDev62;
+  int missingDev63;
+  int missingDev64;
+  int missingDev65;
+  int missingDev66;
+  int missingDev67;
+  int newItsYourTurn;
+  int messageType69;
+  int curTime70;
+  int dayOfWeek71;
+  int startTime72;
+  int end1stShift73;
+  int end2ndShift74;
+  int end3rdShift75;
+  String message;     // 0 = SetPoints, 1 = AwayDrop (0=0ff, 1=10% diff,5=50%diff, anything above 10 is actual temp)
+  String textMessage; // text for sending to displays
+  */
+} struct_message;
+
+void updateCsvStringFromBuffer2()
+{
+  Serial.println("you reached updateCsvString");
+  Serial.println(buffString);
+  Serial.println("\n\r");
+  int commaIndex1 = buffString.indexOf(',');
+  int commaIndex2 = buffString.indexOf(',', commaIndex1 + 1);
+  int commaIndex3 = buffString.indexOf(',', commaIndex2 + 1);
+  int commaIndex4 = buffString.indexOf(',', commaIndex3 + 1);
+  int commaIndex5 = buffString.indexOf(',', commaIndex4 + 1);
+  int commaIndex6 = buffString.indexOf(',', commaIndex5 + 1);
+  int commaIndex7 = buffString.indexOf(',', commaIndex6 + 1);
+  int commaIndex8 = buffString.indexOf(',', commaIndex7 + 1);
+  int commaIndex9 = buffString.indexOf(',', commaIndex8 + 1);
+  int commaIndex10 = buffString.indexOf(',', commaIndex9 + 1);
+  int commaIndex11 = buffString.indexOf(',', commaIndex10 + 1);
+  int commaIndex12 = buffString.indexOf(',', commaIndex11 + 1);
+  int commaIndex13 = buffString.indexOf(',', commaIndex12 + 1);
+  int commaIndex14 = buffString.indexOf(',', commaIndex13 + 1);
+  int commaIndex15 = buffString.indexOf(',', commaIndex14 + 1);
+  int commaIndex16 = buffString.indexOf(',', commaIndex15 + 1);
+  int commaIndex17 = buffString.indexOf(',', commaIndex16 + 1);
+  int commaIndex18 = buffString.indexOf(',', commaIndex17 + 1);
+  int commaIndex19 = buffString.indexOf(',', commaIndex18 + 1);
+  int commaIndex20 = buffString.indexOf(',', commaIndex19 + 1);
+  int commaIndex21 = buffString.indexOf(',', commaIndex20 + 1);
+  int commaIndex22 = buffString.indexOf(',', commaIndex21 + 1);
+  int commaIndex23 = buffString.indexOf(',', commaIndex22 + 1);
+  int commaIndex24 = buffString.indexOf(',', commaIndex23 + 1);
+  int commaIndex25 = buffString.indexOf(',', commaIndex24 + 1);
+  int commaIndex26 = buffString.indexOf(',', commaIndex25 + 1);
+  int commaIndex27 = buffString.indexOf(',', commaIndex26 + 1);
+  int commaIndex28 = buffString.indexOf(',', commaIndex27 + 1);
+  int commaIndex29 = buffString.indexOf(',', commaIndex28 + 1);
+  int commaIndex30 = buffString.indexOf(',', commaIndex29 + 1);
+  int commaIndex31 = buffString.indexOf(',', commaIndex30 + 1);
+  int commaIndex32 = buffString.indexOf(',', commaIndex31 + 1);
+  int commaIndex33 = buffString.indexOf(',', commaIndex32 + 1);
+  int commaIndex34 = buffString.indexOf(',', commaIndex33 + 1);
+  int commaIndex35 = buffString.indexOf(',', commaIndex34 + 1);
+  int commaIndex36 = buffString.indexOf(',', commaIndex35 + 1);
+  int commaIndex37 = buffString.indexOf(',', commaIndex36 + 1);
+  int commaIndex38 = buffString.indexOf(',', commaIndex37 + 1);
+  int commaIndex39 = buffString.indexOf(',', commaIndex38 + 1);
+  int commaIndex40 = buffString.indexOf(',', commaIndex39 + 1);
+  int commaIndex41 = buffString.indexOf(',', commaIndex40 + 1);
+  int commaIndex42 = buffString.indexOf(',', commaIndex41 + 1);
+  int commaIndex43 = buffString.indexOf(',', commaIndex42 + 1);
+  int commaIndex44 = buffString.indexOf(',', commaIndex43 + 1);
+  int commaIndex45 = buffString.indexOf(',', commaIndex44 + 1);
+  int commaIndex46 = buffString.indexOf(',', commaIndex45 + 1);
+  int commaIndex47 = buffString.indexOf(',', commaIndex46 + 1);
+  int commaIndex48 = buffString.indexOf(',', commaIndex47 + 1);
+  int commaIndex49 = buffString.indexOf(',', commaIndex48 + 1);
+  int commaIndex50 = buffString.indexOf(',', commaIndex49 + 1);
+  int commaIndex51 = buffString.indexOf(',', commaIndex50 + 1);
+  int commaIndex52 = buffString.indexOf(',', commaIndex51 + 1);
+  int commaIndex53 = buffString.indexOf(',', commaIndex52 + 1);
+  int commaIndex54 = buffString.indexOf(',', commaIndex53 + 1);
+  int commaIndex55 = buffString.indexOf(',', commaIndex54 + 1);
+  int commaIndex56 = buffString.indexOf(',', commaIndex55 + 1);
+  int commaIndex57 = buffString.indexOf(',', commaIndex56 + 1);
+  int commaIndex58 = buffString.indexOf(',', commaIndex57 + 1);
+  int commaIndex59 = buffString.indexOf(',', commaIndex58 + 1);
+  int commaIndex60 = buffString.indexOf(',', commaIndex59 + 1);
+  int commaIndex61 = buffString.indexOf(',', commaIndex60 + 1);
+  int commaIndex62 = buffString.indexOf(',', commaIndex61 + 1);
+  int commaIndex63 = buffString.indexOf(',', commaIndex62 + 1);
+  int commaIndex64 = buffString.indexOf(',', commaIndex63 + 1);
+  int commaIndex65 = buffString.indexOf(',', commaIndex64 + 1);
+  int commaIndex66 = buffString.indexOf(',', commaIndex65 + 1);
+  int commaIndex67 = buffString.indexOf(',', commaIndex66 + 1);
+  int commaIndex68 = buffString.indexOf(',', commaIndex67 + 1);
+  int commaIndex69 = buffString.indexOf(',', commaIndex68 + 1);
+  int commaIndex70 = buffString.indexOf(',', commaIndex69 + 1);
+  int commaIndex71 = buffString.indexOf(',', commaIndex70 + 1);
+  int commaIndex72 = buffString.indexOf(',', commaIndex71 + 1);
+  int commaIndex73 = buffString.indexOf(',', commaIndex72 + 1);
+  int commaIndex74 = buffString.indexOf(',', commaIndex73 + 1);
+  int commaIndex75 = buffString.indexOf(',', commaIndex74 + 1);
+
+  String val1 = buffString.substring(0, commaIndex1);
+  String val2 = buffString.substring(commaIndex1 + 1, commaIndex2);
+  String val3 = buffString.substring(commaIndex2 + 1, commaIndex3);
+  String val4 = buffString.substring(commaIndex3 + 1, commaIndex4);
+  String val5 = buffString.substring(commaIndex4 + 1, commaIndex5);
+  String val6 = buffString.substring(commaIndex5 + 1, commaIndex6);
+  String val7 = buffString.substring(commaIndex6 + 1, commaIndex7);
+  String val8 = buffString.substring(commaIndex7 + 1, commaIndex8);
+  String val9 = buffString.substring(commaIndex8 + 1, commaIndex9);
+  String val10 = buffString.substring(commaIndex9 + 1, commaIndex10);
+  String val11 = buffString.substring(commaIndex10 + 1, commaIndex11);
+  String val12 = buffString.substring(commaIndex11 + 1, commaIndex12);
+  String val13 = buffString.substring(commaIndex12 + 1, commaIndex13);
+  String val14 = buffString.substring(commaIndex13 + 1, commaIndex14);
+  String val15 = buffString.substring(commaIndex14 + 1, commaIndex15);
+  String val16 = buffString.substring(commaIndex15 + 1, commaIndex16);
+  String val17 = buffString.substring(commaIndex16 + 1, commaIndex17);
+  String val18 = buffString.substring(commaIndex17 + 1, commaIndex18);
+  String val19 = buffString.substring(commaIndex18 + 1, commaIndex19);
+  String val20 = buffString.substring(commaIndex19 + 1, commaIndex20);
+  String val21 = buffString.substring(commaIndex20 + 1, commaIndex21);
+  String val22 = buffString.substring(commaIndex21 + 1, commaIndex22);
+  String val23 = buffString.substring(commaIndex22 + 1, commaIndex23);
+  String val24 = buffString.substring(commaIndex23 + 1, commaIndex24);
+  String val25 = buffString.substring(commaIndex24 + 1, commaIndex25);
+  String val26 = buffString.substring(commaIndex25 + 1, commaIndex26);
+  String val27 = buffString.substring(commaIndex26 + 1, commaIndex27);
+  String val28 = buffString.substring(commaIndex27 + 1, commaIndex28);
+  String val29 = buffString.substring(commaIndex28 + 1, commaIndex29);
+  String val30 = buffString.substring(commaIndex29 + 1, commaIndex30);
+  String val31 = buffString.substring(commaIndex30 + 1, commaIndex31);
+  String val32 = buffString.substring(commaIndex31 + 1, commaIndex32);
+  String val33 = buffString.substring(commaIndex32 + 1, commaIndex33);
+  String val34 = buffString.substring(commaIndex33 + 1, commaIndex34);
+  String val35 = buffString.substring(commaIndex34 + 1, commaIndex35);
+  String val36 = buffString.substring(commaIndex35 + 1, commaIndex36);
+  String val37 = buffString.substring(commaIndex36 + 1, commaIndex37);
+  String val38 = buffString.substring(commaIndex37 + 1, commaIndex38);
+  String val39 = buffString.substring(commaIndex38 + 1, commaIndex39);
+  String val40 = buffString.substring(commaIndex39 + 1, commaIndex40);
+  String val41 = buffString.substring(commaIndex40 + 1, commaIndex41);
+  String val42 = buffString.substring(commaIndex41 + 1, commaIndex42);
+  String val43 = buffString.substring(commaIndex42 + 1, commaIndex43);
+  String val44 = buffString.substring(commaIndex43 + 1, commaIndex44);
+  String val45 = buffString.substring(commaIndex44 + 1, commaIndex45);
+  String val46 = buffString.substring(commaIndex45 + 1, commaIndex46);
+  String val47 = buffString.substring(commaIndex46 + 1, commaIndex47);
+  String val48 = buffString.substring(commaIndex47 + 1, commaIndex48);
+  String val49 = buffString.substring(commaIndex48 + 1, commaIndex49);
+  String val50 = buffString.substring(commaIndex49 + 1, commaIndex50);
+  String val51 = buffString.substring(commaIndex50 + 1, commaIndex51);
+  String val52 = buffString.substring(commaIndex51 + 1, commaIndex52);
+  String val53 = buffString.substring(commaIndex52 + 1, commaIndex53);
+  String val54 = buffString.substring(commaIndex53 + 1, commaIndex54);
+  String val55 = buffString.substring(commaIndex54 + 1, commaIndex55);
+  String val56 = buffString.substring(commaIndex55 + 1, commaIndex56);
+  String val57 = buffString.substring(commaIndex56 + 1, commaIndex57);
+  String val58 = buffString.substring(commaIndex57 + 1, commaIndex58);
+  String val59 = buffString.substring(commaIndex58 + 1, commaIndex59);
+  String val60 = buffString.substring(commaIndex59 + 1, commaIndex60);
+  String val61 = buffString.substring(commaIndex60 + 1, commaIndex61);
+  String val62 = buffString.substring(commaIndex61 + 1, commaIndex62);
+  String val63 = buffString.substring(commaIndex62 + 1, commaIndex63);
+  String val64 = buffString.substring(commaIndex63 + 1, commaIndex64);
+  String val65 = buffString.substring(commaIndex64 + 1, commaIndex65);
+  String val66 = buffString.substring(commaIndex65 + 1, commaIndex66);
+  String val67 = buffString.substring(commaIndex66 + 1, commaIndex67);
+  String val68 = buffString.substring(commaIndex67 + 1, commaIndex68);
+  String val69 = buffString.substring(commaIndex68 + 1, commaIndex69);
+  String val70 = buffString.substring(commaIndex69 + 1, commaIndex70);
+  String val71 = buffString.substring(commaIndex70 + 1, commaIndex71);
+  String val72 = buffString.substring(commaIndex71 + 1, commaIndex72);
+  String val73 = buffString.substring(commaIndex72 + 1, commaIndex73);
+  String val74 = buffString.substring(commaIndex73 + 1, commaIndex74);
+  String val75 = buffString.substring(commaIndex74 + 1, commaIndex75);
+
+  String tempReadDevice1 = val1;
+  String tempReadDevice2 = val2;
+  String tempReadDevice3 = val3;
+  String tempReadDevice4 = val4;
+  String tempReadDevice5 = val5;
+  String tempReadDevice6 = val6;
+  String tempReadDevice7 = val7;
+  String tempReadDevice8 = val8;
+  String tempReadDevice9 = val9;
+  String tempReadDevice10 = val10;
+  String tempReadDevice11 = val11;
+  String tempReadDevice12 = val12;
+  String tempReadDevice13 = val13;
+  String tempReadDevice14 = val14;
+  String tempReadDevice15 = val15;
+  String tempReadDevice16 = val16;
+  String tempReadDevice17 = val17;
+  String tempReadDevice18 = val18;
+  String tempReadDevice19 = val19;
+  String tempReadDevice20 = val20;
+  String tempReadDevice21 = val21;
+  String tempReadDevice22 = val22;
+  String tempReadDevice23 = val23;
+  String tempReadDevice24 = val24;
+  String tempReadDevice25 = val25;
+  String tempReadDevice26 = val26;
+  String tempReadDevice27 = val27;
+  String tempReadDevice28 = val28;
+  String tempReadDevice29 = val29;
+  String tempReadDevice30 = val30;
+  String tempReadDevice31 = val31;
+  String tempReadDevice32 = val32;
+  String tempReadDevice33 = val33;
+  String tempReadDevice34 = val34;
+  String tempReadDevice35 = val35;
+  String tempReadDevice36 = val36;
+  String tempReadDevice37 = val37;
+  String tempReadDevice38 = val38;
+  String tempReadDevice39 = val39;
+  String tempReadDevice40 = val40;
+  String tempReadDevice41 = val41;
+  String tempReadDevice42 = val42;
+  String tempReadDevice43 = val43;
+  String tempReadDevice44 = val44;
+  String tempReadDevice45 = val45;
+  String tempReadDevice46 = val46;
+  String tempReadDevice47 = val47;
+  String tempReadDevice48 = val48;
+  String tempReadDevice49 = val49;
+  String tempReadDevice50 = val50;
+  String tempReadDevice51 = val51;
+  String tempReadDevice52 = val52;
+  String tempReadDevice53 = val53;
+  String tempReadDevice54 = val54;
+  String tempReadDevice55 = val55;
+  String tempReadDevice56 = val56;
+  String tempReadDevice57 = val57;
+  String tempReadDevice58 = val58;
+  String tempReadDevice59 = val59;
+  String tempReadDevice60 = val60;
+  String tempReadDevice61 = val61;
+  String tempReadDevice62 = val62;
+  String tempReadDevice63 = val63;
+  String tempReadDevice64 = val64;
+  String tempReadDevice65 = val65;
+  String tempReadDevice66 = val66;
+  String tempReadDevice67 = val67;
+  String tempReadDevice68 = val68;
+  String tempReadDevice69 = val69;
+  String tempReadDevice70 = val70;
+  String tempReadDevice71 = val71;
+  String tempReadDevice72 = val72;
+  String tempReadDevice73 = val73;
+  String tempReadDevice74 = val74;
+  String tempReadDevice75 = val75;
+  String message = "test";
+  String textMessage = "text";
+
+  /*
+  deviceID, setPoint1, setPoint2, setPoint3, setPoint4, setPoint5, setPoint6, setPoint7, setPoint8, setPoint9, setPoint10, setPoint11, setPoint12, setPoint13, setPoint14, setPoint15, setPoint16, setPoint17, setPoint18, setPoint19, setPoint20, awayDrop21, awayDrop22, awayDrop23, awayDrop24, awayDrop25, awayDrop27, awayDrop28, awayDrop29, awayDrop30, awayDrop31, awayDrop32, awayDrop33, awayDrop34, awayDrop35, awayDrop36, awayDrop37, awayDrop39, awayDrop40, ambientTemp41, highTempLimit42, lowTempLimit43, shutDownBool44, ambientThresholdOverride45, goToRunState46, goingUpStates47, sendingID48, whoIsCurrentlyIncrementing49, missingDev50, missingDev51, missingDev52, missingDev53, missingDev54, missingDev55, missingDev56, missingDev57, missingDev58, missingDev59, missingDev60, missingDev61, missingDev62, missingDev63, missingDev64, missingDev65, missingDev66, missingDev67, newItsYourTurn, messageType69, curTime70, dayOfWeek71, startTime72, end1stShift73, end2ndShift74, end3rdShift75
+  */
+  String receivedEspNowReadingCSV[] = {tempReadDevice1, tempReadDevice2, tempReadDevice3, tempReadDevice4, tempReadDevice5, tempReadDevice6, tempReadDevice7, tempReadDevice8, tempReadDevice9, tempReadDevice10, tempReadDevice11, tempReadDevice12, tempReadDevice13, tempReadDevice14, tempReadDevice15, tempReadDevice16, tempReadDevice17, tempReadDevice18, tempReadDevice19, tempReadDevice20, tempReadDevice21, tempReadDevice22, tempReadDevice23, tempReadDevice24, tempReadDevice25, tempReadDevice26, tempReadDevice27, tempReadDevice28, tempReadDevice29, tempReadDevice30, tempReadDevice31, tempReadDevice32, tempReadDevice33, tempReadDevice34, tempReadDevice35, tempReadDevice36, tempReadDevice37, tempReadDevice38, tempReadDevice39, tempReadDevice40, tempReadDevice41, tempReadDevice42, tempReadDevice43, tempReadDevice44, tempReadDevice45, tempReadDevice46, tempReadDevice47, tempReadDevice48, tempReadDevice49, tempReadDevice50, tempReadDevice51, tempReadDevice52, tempReadDevice53, tempReadDevice54, tempReadDevice55, tempReadDevice56, tempReadDevice57, tempReadDevice58, tempReadDevice59, tempReadDevice60, tempReadDevice61, tempReadDevice62, tempReadDevice63, tempReadDevice64, tempReadDevice65, tempReadDevice66, tempReadDevice67, tempReadDevice68, tempReadDevice69, tempReadDevice70, tempReadDevice71, tempReadDevice72, tempReadDevice73, tempReadDevice74, tempReadDevice75, message}; //, message, textMessage
+
+  for (int i = 0; i <= 75; i++)
+  {
+    Serial.println(receivedEspNowReadingCSV[i]);
+  }
+
+  Serial.println("HERE ARE THE UPDATED STRING VALUES");
+  Serial.println(receivedEspNowReadingCSV[0]);
+  Serial.println(receivedEspNowReadingCSV[48]);
+  Serial.println(receivedEspNowReadingCSV[73]); // test
+  Serial.println(message);
+  Serial.println(receivedEspNowReadingCSV[74]);
+  Serial.println(receivedEspNowReadingCSV[75]);
+  structArray[0] = tempReadDevice1.toInt();
+  structArray[1] = tempReadDevice2.toInt();
+  structArray[2] = tempReadDevice3.toInt();
+  structArray[3] = tempReadDevice4.toInt();
+  structArray[4] = tempReadDevice5.toInt();
+  structArray[5] = tempReadDevice6.toInt();
+  structArray[6] = tempReadDevice7.toInt();
+  structArray[7] = tempReadDevice8.toInt();
+  structArray[8] = tempReadDevice9.toInt();
+  structArray[9] = tempReadDevice10.toInt();
+  structArray[10] = tempReadDevice11.toInt();
+  structArray[11] = tempReadDevice12.toInt();
+  structArray[12] = tempReadDevice13.toInt();
+  structArray[13] = tempReadDevice14.toInt();
+  structArray[14] = tempReadDevice15.toInt();
+  structArray[15] = tempReadDevice16.toInt();
+  structArray[16] = tempReadDevice17.toInt();
+  structArray[17] = tempReadDevice18.toInt();
+  structArray[18] = tempReadDevice19.toInt();
+  structArray[19] = tempReadDevice20.toInt();
+  structArray[20] = tempReadDevice21.toInt();
+  structArray[21] = tempReadDevice22.toInt();
+  structArray[22] = tempReadDevice23.toInt();
+  structArray[23] = tempReadDevice24.toInt();
+  structArray[24] = tempReadDevice25.toInt();
+  structArray[25] = tempReadDevice26.toInt();
+  structArray[26] = tempReadDevice27.toInt();
+  structArray[27] = tempReadDevice28.toInt();
+  structArray[28] = tempReadDevice29.toInt();
+  structArray[29] = tempReadDevice30.toInt();
+  structArray[30] = tempReadDevice31.toInt();
+  structArray[31] = tempReadDevice32.toInt();
+  structArray[32] = tempReadDevice33.toInt();
+  structArray[33] = tempReadDevice34.toInt();
+  structArray[34] = tempReadDevice35.toInt();
+  structArray[35] = tempReadDevice36.toInt();
+  structArray[36] = tempReadDevice37.toInt();
+  structArray[37] = tempReadDevice38.toInt();
+  structArray[38] = tempReadDevice39.toInt();
+  structArray[39] = tempReadDevice40.toInt();
+  structArray[40] = tempReadDevice41.toInt();
+  structArray[41] = tempReadDevice42.toInt();
+  structArray[42] = tempReadDevice43.toInt();
+  structArray[43] = tempReadDevice44.toInt();
+  structArray[44] = tempReadDevice45.toInt();
+  structArray[45] = tempReadDevice46.toInt();
+  structArray[46] = tempReadDevice47.toInt();
+  structArray[47] = tempReadDevice48.toInt();
+  structArray[48] = tempReadDevice49.toInt();
+  structArray[49] = tempReadDevice50.toInt();
+  structArray[50] = tempReadDevice51.toInt();
+  structArray[51] = tempReadDevice52.toInt();
+  structArray[52] = tempReadDevice53.toInt();
+  structArray[53] = tempReadDevice54.toInt();
+  structArray[54] = tempReadDevice55.toInt();
+  structArray[55] = tempReadDevice56.toInt();
+  structArray[56] = tempReadDevice57.toInt();
+  structArray[57] = tempReadDevice58.toInt();
+  structArray[58] = tempReadDevice59.toInt();
+  structArray[59] = tempReadDevice60.toInt();
+  structArray[60] = tempReadDevice61.toInt();
+  structArray[61] = tempReadDevice62.toInt();
+  structArray[62] = tempReadDevice63.toInt();
+  structArray[63] = tempReadDevice64.toInt();
+  structArray[64] = tempReadDevice65.toInt();
+  structArray[65] = tempReadDevice66.toInt();
+  structArray[66] = tempReadDevice67.toInt();
+  structArray[67] = tempReadDevice68.toInt();
+  structArray[68] = tempReadDevice69.toInt();
+  structArray[69] = tempReadDevice70.toInt();
+  structArray[70] = tempReadDevice71.toInt();
+  structArray[71] = tempReadDevice72.toInt();
+  structArray[72] = tempReadDevice73.toInt();
+  structArray[73] = tempReadDevice74.toInt();
+  structArray[74] = tempReadDevice75.toInt();
+
+  for (int i = 0; i <= 75; i++)
+  {
+    Serial.println(receivedEspNowReadingCSV[i]);
+    // Serial.println(structArray[i]);
+    // Serial.println(structArray[i]);
+    Serial.println("*****************************");
+  }
+
+  // if(waitingForThisDeviceToBroadcast != randomArray[19]){
+  //   Serial.println("waitingForThisDeviceToBroadcast =");
+  //   Serial.print(waitingForThisDeviceToBroadcast);
+  // }
+}
+
+void receiveCallback(const uint8_t *macAddr, const uint8_t *data, int dataLen) // data and dataLen are internal variables
+// Called when data is received
+{
+  // Only allow a maximum of 250 characters in the message + a null terminating byte
+  char buffer[ESP_NOW_MAX_DATA_LEN + 1];
+  int msgLen = min(ESP_NOW_MAX_DATA_LEN, dataLen);
+  strncpy(buffer, (const char *)data, msgLen);
+  buffString = buffer;   // This buffString line was used... adding line below for newCatString
+  newConcatStr = buffer; // for trying out new changes
+
+  // Make sure we are null terminated
+  buffer[msgLen] = 0; // might need to be before buffString=buffer
+
+  // Format the MAC address
+  char macStr[18];
+  formatMacAddress(macAddr, macStr, 18);
+
+  // Send Debug log message to the serial port
+  Serial.println("*********************************");
+  Serial.printf("Received message from: %s - %s\n", macStr, buffer);
+  Serial.print("\n\r");
+  Serial.print(structArray[0]);
+  Serial.println("*********************************");
+  // Act upon data recieved
+  updateCsvStringFromBuffer2();
+  Serial.println(structArray[0]);
+  // Serial.println(receivedEspNowReadingsCSV[0]);
+}
+
+void sentCallback(const uint8_t *macAddr, esp_now_send_status_t status) // status is internal variable
+// Called when data is sent
+{
+  char macStr[18];
+  formatMacAddress(macAddr, macStr, 18);
+  Serial.print("Last Packet Sent to: ");
+  Serial.println(macStr);
+  Serial.print("Last Packet Send Status: ");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+void newBroadcast2(const String &struct_message)
+// Emulates a broadcast
+{
+  // Broadcast a message to every device in range
+  uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
+  if (!esp_now_is_peer_exist(broadcastAddress))
+  {
+    esp_now_add_peer(&peerInfo);
+  }
+  if (csvArray[0].toInt() == devID)
+  {
+    Serial.println("ITS MY TURN>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    printf("I'm dev number %i, and its my turn\n", devID);
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)struct_message.c_str(), struct_message.length());
+printf("the length of message is... %i\n", newConcatStr.length());
+  // Print results to serial monitor
+  if (result == ESP_OK)
+  {
+    Serial.println("Broadcast2 message success");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_INIT)
+  {
+    Serial.println("ESP-NOW not Init.");
+  }
+  else if (result == ESP_ERR_ESPNOW_ARG)
+  {
+    Serial.println("Invalid Argument");
+  }
+  else if (result == ESP_ERR_ESPNOW_INTERNAL)
+  {
+    Serial.println("Internal Error");
+  }
+  else if (result == ESP_ERR_ESPNOW_NO_MEM)
+  {
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
+  {
+    Serial.println("Peer not found.");
+  }
+  else
+  {
+    Serial.println("Unknown error");
+  }
+  }
+  // Send message
+
+}
+
+
+void broadcast2(const String &struct_message)
+// Emulates a broadcast
+{
+  // Broadcast a message to every device in range
+  uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
+  if (!esp_now_is_peer_exist(broadcastAddress))
+  {
+    esp_now_add_peer(&peerInfo);
+  }
+  if (structArray[48] = devID)
+  {
+    Serial.println("ITS MY TURN>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    printf("I'm dev number %i, and its my turn\n", deviceID);
+    printf("structArray[0] = %i, before this device increments\n", structArray[0]);
+    printf("structArray[68] = %i, this should be itsYourTurn\n", structArray[68]);
+    structArray[48] = structArray[48] + 1;
+    // structArray[0]=structArray[0]+1;
+    // Serial.print(structArray[48]);
+    printf("structArray[48] = %i, after this device incremented\n", structArray[48]);
+  }
+  // Send message
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)struct_message.c_str(), struct_message.length());
+
+  // Print results to serial monitor
+  if (result == ESP_OK)
+  {
+    Serial.println("Broadcast2 message success");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_INIT)
+  {
+    Serial.println("ESP-NOW not Init.");
+  }
+  else if (result == ESP_ERR_ESPNOW_ARG)
+  {
+    Serial.println("Invalid Argument");
+  }
+  else if (result == ESP_ERR_ESPNOW_INTERNAL)
+  {
+    Serial.println("Internal Error");
+  }
+  else if (result == ESP_ERR_ESPNOW_NO_MEM)
+  {
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
+  {
+    Serial.println("Peer not found.");
+  }
+  else
+  {
+    Serial.println("Unknown error");
+  }
+}
+
+void broadcast(const String &message)
+// Emulates a broadcast
+{
+  // Broadcast a message to every device in range
+  uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(&peerInfo.peer_addr, broadcastAddress, 6);
+  if (!esp_now_is_peer_exist(broadcastAddress))
+  {
+    esp_now_add_peer(&peerInfo);
+  }
+  // Send message
+  esp_err_t result = esp_now_send(broadcastAddress, (const uint8_t *)message.c_str(), message.length());
+
+  // Print results to serial monitor
+  if (result == ESP_OK)
+  {
+    Serial.println("Broadcast message success");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_INIT)
+  {
+    Serial.println("ESP-NOW not Init.");
+  }
+  else if (result == ESP_ERR_ESPNOW_ARG)
+  {
+    Serial.println("Invalid Argument");
+  }
+  else if (result == ESP_ERR_ESPNOW_INTERNAL)
+  {
+    Serial.println("Internal Error");
+  }
+  else if (result == ESP_ERR_ESPNOW_NO_MEM)
+  {
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+  }
+  else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
+  {
+    Serial.println("Peer not found.");
+  }
+  else
+  {
+    Serial.println("Unknown error");
+  }
+}
+
+void setup()
+{
+
+  // Set up Serial Monitor
+  Serial.begin(115200);
+  delay(1000);
+
+  // Set ESP32 in STA mode to begin with
+  WiFi.mode(WIFI_STA);
+  Serial.println("ESP-NOW Broadcast Demo");
+
+  // Print MAC address
+  Serial.print("MAC Address: ");
+  Serial.println(WiFi.macAddress());
+
+  // Disconnect from WiFi
+  WiFi.disconnect();
+
+  // Initialize ESP-NOW
+  if (esp_now_init() == ESP_OK)
+  {
+    Serial.println("ESP-NOW INIT Success");
+    esp_now_register_recv_cb(receiveCallback);
+    esp_now_register_send_cb(sentCallback);
+  }
+  else
+  {
+    Serial.println("ESP-NOW Init Failed");
+    delay(3000);
+    ESP.restart();
+  }
+
+  // Pushbutton uses built-in pullup resistor
+  // pinMode(STATUS_BUTTON, INPUT_PULLUP);
+
+  // LED Output
+  pinMode(STATUS_LED, OUTPUT);
+
+
+}
+
+void newGoingUpOrDown()
+{
+  int currentCount = csvArray[0].toInt();
+  if (currentCount >= numOfDevices)
+  {
+    goingUp = 0;
+  }
+  if (currentCount <= 1)
+  {
+    goingUp = 1;
+  }
+  switch (goingUp)
+  {
+  case 1:
+  {
+    Serial.println("Going up");
+    currentCount = currentCount + 1;
+    csvArray[0] = String(currentCount);
+    break;
+  }
+  case 0:
+  {
+    Serial.println("Going down");
+    currentCount = currentCount - 1;
+    csvArray[0] = String(currentCount);
+    break;
+  }
+  }
+  return;
+}
+
+void goingUpOrDown()
+{
+
+  Serial.println("going up is currently");
+  Serial.print(goingUp);
+  switch (goingUp)
+  {
+  case 1:
+  {
+    Serial.print("Going up");
+    itsYourTurn = itsYourTurn + 1;
+    // randomArray[19]=itsYourTurn;
+    // structArray[48]=structArray[48]+1;
+    // Serial.println(structArray[48]);
+    structArray[48] = structArray[48] + 1;
+    Serial.println(structArray[48]);
+    break;
+  }
+  case 0:
+  {
+    Serial.print("Going down");
+    itsYourTurn = itsYourTurn - 1;
+    // randomArray[19]=itsYourTurn;
+    structArray[48] = structArray[48] - 1;
+    Serial.println(structArray[48]);
+    break;
+  }
+  }
+  return;
+}
+void genRandomNum2()
+{
+  structStr = "";
+  /*
+  // print a random number from 1 to 299 THIS WAS JUST GENERATING RANDOM VALUES
+  for(int ii = 0; ii < numOfDevices; ii++){
+  randomArray[ii] = random(300);
+  Serial.println(randomArray[ii]);
+  }
+  */
+  if (itsYourTurn == deviceID)
+  {
+    randomArray[itsYourTurn] = random(64, 70);
+    randomArray[2] = 100; // this would be replaced with randomArray[deviceNum]=thisDeviceReadTemp
+    // this is why it may be advantageous to unicast with a counting checkOR OR OR
+    //  ONLY the device sending to Google Sheets sends the full csv
+    //  or
+  }
+  // print a random number from 10 to 19
+  // randomArray[1] = random(10, 20);
+  // Serial.println(randomArray[1]);
+  if (structArray[48] >= numOfDevices)
+  {
+    goingUp = 0;
+  }
+  if (structArray[48] <= 1)
+  {
+    goingUp = 1;
+  }
+  if (structArray[48] == structArray[0])
+  { // try to prevent incrementing unless its that devices turn
+    goingUpOrDown();
+  }
+
+  for (int i = 0; i < STRUCT_ARRAY_SIZE; i++)
+  {
+    structStr.concat(structArray[i]);
+    if (i < STRUCT_ARRAY_SIZE - 1)
+    {
+      structStr.concat(",");
+    }
+  }
+  Serial.println(structStr);
+  // https://script.google.com/macros/s/AKfycbxLYN5PzL8wzTkypwBRHHbl66eBIzDlGYys3B1LGv13/dev?csvFromEsp=str
+  Serial.println(WiFi.macAddress());
+  delay(1000);
+}
+
+void genRandomNum()
+{
+  str = "";
+  /*
+  // print a random number from 1 to 299 THIS WAS JUST GENERATING RANDOM VALUES
+  for(int ii = 0; ii < numOfDevices; ii++){
+  randomArray[ii] = random(300);
+  Serial.println(randomArray[ii]);
+  }
+  */
+  if (itsYourTurn == deviceID)
+  {
+    randomArray[itsYourTurn] = random(64, 70);
+    randomArray[2] = 100; // this would be replaced with randomArray[deviceNum]=thisDeviceReadTemp
+    // this is why it may be advantageous to unicast with a counting checkOR OR OR
+    //  ONLY the device sending to Google Sheets sends the full csv
+    //  or
+  }
+  // print a random number from 10 to 19
+  // randomArray[1] = random(10, 20);
+  // Serial.println(randomArray[1]);
+  if (itsYourTurn >= numOfDevices)
+  {
+    goingUp = 0;
+  }
+  if (itsYourTurn <= 1)
+  {
+    goingUp = 1;
+  }
+  goingUpOrDown();
+  for (int i = 0; i < RAND_ARRAY_SIZE; i++)
+  {
+    str.concat(randomArray[i]);
+    if (i < RAND_ARRAY_SIZE - 1)
+    {
+      str.concat(",");
+    }
+  }
+  Serial.println(str);
+  // https://script.google.com/macros/s/AKfycbxLYN5PzL8wzTkypwBRHHbl66eBIzDlGYys3B1LGv13/dev?csvFromEsp=str
+  Serial.println(WiFi.macAddress());
+  delay(1000);
+}
+
+void millisTimer()
+{
+  if (startTimeSet == 0)
+  {
+    startTime = millis();
+    startTimeSet = 1;
+  }
+}
+void loop()
+{
+  millisTimer();
+  if (millis() - startTime >= 1000)
+  {
+    // genRandomNum2();
+     newBroadcast2(newConcatStr);
+    //  Serial.println(str); // str = macAddr in string format
+    //   Serial.println(structStr);  //this is the series of csv string vals
+    printCsvArrayValues();
+    Serial.println(String(newConcatStr));
+    startTimeSet = 0;
+  }
+
+  // its my turn and the full string 2x
+}
